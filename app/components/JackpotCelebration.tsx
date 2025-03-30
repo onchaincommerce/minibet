@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useRef, useEffect, useState } from "react";
+import Image from "next/image";
 
 interface Particle {
   id: number;
@@ -299,21 +300,21 @@ export default function JackpotCelebration({ isVisible, payoutAmount = "0.1", ti
       {animationPhase >= 1 && (
         <div className="fixed inset-0 z-30 pointer-events-none">
           <div className="floating-fairy fairy-1">
-            <img src="/fairy.png" alt="Fairy" className="w-16 h-16 object-contain pixelated" />
+            <Image src="/fairy.png" alt="Fairy" width={24} height={24} className="w-16 h-16 object-contain pixelated" />
           </div>
           <div className="floating-fairy fairy-2">
-            <img src="/fairy.png" alt="Fairy" className="w-12 h-12 object-contain pixelated" />
+            <Image src="/fairy.png" alt="Fairy" width={16} height={16} className="w-12 h-12 object-contain pixelated" />
           </div>
           <div className="floating-fairy fairy-3">
-            <img src="/fairy.png" alt="Fairy" className="w-20 h-20 object-contain pixelated" />
+            <Image src="/fairy.png" alt="Fairy" width={32} height={32} className="w-20 h-20 object-contain pixelated" />
           </div>
           {tier === 1 && (
             <>
               <div className="floating-fairy fairy-4">
-                <img src="/fairy.png" alt="Fairy" className="w-16 h-16 object-contain pixelated" />
+                <Image src="/fairy.png" alt="Fairy" width={24} height={24} className="w-16 h-16 object-contain pixelated" />
               </div>
               <div className="floating-fairy fairy-5">
-                <img src="/fairy.png" alt="Fairy" className="w-14 h-14 object-contain pixelated" />
+                <Image src="/fairy.png" alt="Fairy" width={22} height={22} className="w-14 h-14 object-contain pixelated" />
               </div>
             </>
           )}
@@ -333,9 +334,11 @@ export default function JackpotCelebration({ isVisible, payoutAmount = "0.1", ti
         {/* Center fairy for jackpot */}
         {tier === 1 && animationPhase >= 3 && (
           <div className="mt-6 flex justify-center">
-            <img 
+            <Image 
               src="/fairy.png" 
               alt="Fairy" 
+              width={36}
+              height={36}
               className="w-24 h-24 object-contain pixelated animate-pulse"
             />
           </div>

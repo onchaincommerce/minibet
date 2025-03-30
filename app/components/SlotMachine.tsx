@@ -5,6 +5,7 @@ import { useAccount, useWalletClient } from "wagmi";
 import { parseEther, createPublicClient, http } from "viem";
 import { useNotification } from "@coinbase/onchainkit/minikit";
 import { baseSepolia } from "wagmi/chains";
+import Image from "next/image";
 import JackpotCelebration from "./JackpotCelebration";
 
 // This is the deployed contract address
@@ -413,13 +414,13 @@ export default function SlotMachine() {
         <div className="flex justify-center items-center">
           <div className="grid grid-cols-3 gap-4 items-center justify-items-center">
             <div className="slot-symbol">
-              <img src="/fairy.png" alt="Fairy" className="w-full h-full object-contain p-1" />
+              <Image src="/fairy.png" alt="Fairy" width={64} height={64} className="w-full h-full object-contain p-1" />
             </div>
             <div className="slot-symbol">
-              <img src="/fairy.png" alt="Fairy" className="w-full h-full object-contain p-1" />
+              <Image src="/fairy.png" alt="Fairy" width={64} height={64} className="w-full h-full object-contain p-1" />
             </div>
             <div className="slot-symbol">
-              <img src="/fairy.png" alt="Fairy" className="w-full h-full object-contain p-1" />
+              <Image src="/fairy.png" alt="Fairy" width={64} height={64} className="w-full h-full object-contain p-1" />
             </div>
           </div>
         </div>
@@ -433,49 +434,31 @@ export default function SlotMachine() {
           {isConnected && isTxSuccess && result !== null ? (
             <>
               <div className="slot-symbol">
-                <img src="/mario_8bit.png" alt="Mario" className="w-full h-full object-contain p-1" />
+                <Image src="/mario_8bit.png" alt="Mario" width={64} height={64} className="w-full h-full object-contain p-1" />
               </div>
               <div className="slot-symbol">
-                <img src="/base-logo-8bit.png" alt="Base" className="w-full h-full object-contain p-1" />
+                <Image src="/base-logo-8bit.png" alt="Base" width={64} height={64} className="w-full h-full object-contain p-1" />
               </div>
               <div className="slot-symbol">
-                <img src="/mario_8bit.png" alt="Mario" className="w-full h-full object-contain p-1" />
+                <Image src="/mario_8bit.png" alt="Mario" width={64} height={64} className="w-full h-full object-contain p-1" />
               </div>
             </>
           ) : (
             <>
               <div className="slot-symbol">
-                <img src="/base-logo-8bit.png" alt="Base" className="w-full h-full object-contain p-1" />
+                <Image src="/base-logo-8bit.png" alt="Base" width={64} height={64} className="w-full h-full object-contain p-1" />
               </div>
               <div className="slot-symbol">
-                <img src="/base-logo-8bit.png" alt="Base" className="w-full h-full object-contain p-1" />
+                <Image src="/base-logo-8bit.png" alt="Base" width={64} height={64} className="w-full h-full object-contain p-1" />
               </div>
               <div className="slot-symbol">
-                <img src="/base-logo-8bit.png" alt="Base" className="w-full h-full object-contain p-1" />
+                <Image src="/base-logo-8bit.png" alt="Base" width={64} height={64} className="w-full h-full object-contain p-1" />
               </div>
             </>
           )}
         </div>
       </div>
     );
-  };
-
-  const createCoins = () => {
-    if (tier !== 1 && tier !== 2) return null;
-    
-    return Array.from({ length: tier === 1 ? 20 : 10 }).map((_, i: number) => (
-      <div 
-        key={i}
-        className="coin absolute text-2xl"
-        style={{
-          left: `${Math.random() * 100}%`,
-          animationDelay: `${Math.random() * 0.5}s`,
-          animationDuration: `${1 + Math.random()}s`
-        }}
-      >
-        {Math.random() > 0.5 ? '💰' : '🪙'}
-      </div>
-    ));
   };
 
   // Generate share text based on win tier
@@ -556,57 +539,57 @@ export default function SlotMachine() {
                   <div className="slot-machine-reel">
                     <div className="slot-machine-symbols">
                       <div className="slot-symbol-container">
-                        <img src="/mario_8bit.png" alt="Mario" className="slot-symbol-img" />
+                        <Image src="/mario_8bit.png" alt="Mario" width={64} height={64} className="slot-symbol-img" />
                       </div>
                       <div className="slot-symbol-container">
-                        <img src="/fairy.png" alt="Fairy" className="slot-symbol-img" />
+                        <Image src="/fairy.png" alt="Fairy" width={64} height={64} className="slot-symbol-img" />
                       </div>
                       <div className="slot-symbol-container">
-                        <img src="/base-logo-8bit.png" alt="Base" className="slot-symbol-img" />
+                        <Image src="/base-logo-8bit.png" alt="Base" width={64} height={64} className="slot-symbol-img" />
                       </div>
                       <div className="slot-symbol-container">
-                        <img src="/mario_8bit.png" alt="Mario" className="slot-symbol-img" />
+                        <Image src="/mario_8bit.png" alt="Mario" width={64} height={64} className="slot-symbol-img" />
                       </div>
                       <div className="slot-symbol-container">
-                        <img src="/fairy.png" alt="Fairy" className="slot-symbol-img" />
+                        <Image src="/fairy.png" alt="Fairy" width={64} height={64} className="slot-symbol-img" />
                       </div>
                     </div>
                   </div>
                   <div className="slot-machine-reel delay-100">
                     <div className="slot-machine-symbols">
                       <div className="slot-symbol-container">
-                        <img src="/fairy.png" alt="Fairy" className="slot-symbol-img" />
+                        <Image src="/fairy.png" alt="Fairy" width={64} height={64} className="slot-symbol-img" />
                       </div>
                       <div className="slot-symbol-container">
-                        <img src="/base-logo-8bit.png" alt="Base" className="slot-symbol-img" />
+                        <Image src="/base-logo-8bit.png" alt="Base" width={64} height={64} className="slot-symbol-img" />
                       </div>
                       <div className="slot-symbol-container">
-                        <img src="/mario_8bit.png" alt="Mario" className="slot-symbol-img" />
+                        <Image src="/mario_8bit.png" alt="Mario" width={64} height={64} className="slot-symbol-img" />
                       </div>
                       <div className="slot-symbol-container">
-                        <img src="/fairy.png" alt="Fairy" className="slot-symbol-img" />
+                        <Image src="/fairy.png" alt="Fairy" width={64} height={64} className="slot-symbol-img" />
                       </div>
                       <div className="slot-symbol-container">
-                        <img src="/base-logo-8bit.png" alt="Base" className="slot-symbol-img" />
+                        <Image src="/base-logo-8bit.png" alt="Base" width={64} height={64} className="slot-symbol-img" />
                       </div>
                     </div>
                   </div>
                   <div className="slot-machine-reel delay-200">
                     <div className="slot-machine-symbols">
                       <div className="slot-symbol-container">
-                        <img src="/base-logo-8bit.png" alt="Base" className="slot-symbol-img" />
+                        <Image src="/base-logo-8bit.png" alt="Base" width={64} height={64} className="slot-symbol-img" />
                       </div>
                       <div className="slot-symbol-container">
-                        <img src="/mario_8bit.png" alt="Mario" className="slot-symbol-img" />
+                        <Image src="/mario_8bit.png" alt="Mario" width={64} height={64} className="slot-symbol-img" />
                       </div>
                       <div className="slot-symbol-container">
-                        <img src="/fairy.png" alt="Fairy" className="slot-symbol-img" />
+                        <Image src="/fairy.png" alt="Fairy" width={64} height={64} className="slot-symbol-img" />
                       </div>
                       <div className="slot-symbol-container">
-                        <img src="/base-logo-8bit.png" alt="Base" className="slot-symbol-img" />
+                        <Image src="/base-logo-8bit.png" alt="Base" width={64} height={64} className="slot-symbol-img" />
                       </div>
                       <div className="slot-symbol-container">
-                        <img src="/mario_8bit.png" alt="Mario" className="slot-symbol-img" />
+                        <Image src="/mario_8bit.png" alt="Mario" width={64} height={64} className="slot-symbol-img" />
                       </div>
                     </div>
                   </div>
