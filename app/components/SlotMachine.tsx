@@ -75,6 +75,7 @@ export default function SlotMachine() {
   const sendNotification = useNotification();
   const [winClass, setWinClass] = useState<string>("");
   const [showJackpot, setShowJackpot] = useState(false);
+  const [showShareButton, setShowShareButton] = useState(false);
   
   // Get wallet client to sign transactions
   const { data: walletClient } = useWalletClient();
@@ -94,6 +95,7 @@ export default function SlotMachine() {
       setTxPending(false);
       setWinClass("");
       setShowJackpot(false);
+      setShowShareButton(false);
     }
   }, [isConnected]);
 
@@ -107,6 +109,15 @@ export default function SlotMachine() {
       return () => clearTimeout(timer);
     }
   }, [showJackpot]);
+
+  // Show share button after a win
+  useEffect(() => {
+    if (tier !== null && tier < 4) {
+      setShowShareButton(true);
+    } else {
+      setShowShareButton(false);
+    }
+  }, [tier]);
 
   // Process transaction receipt to extract SpinResult event
   const processReceipt = (receipt: TransactionReceipt) => {
@@ -372,38 +383,6 @@ export default function SlotMachine() {
     }
   };
 
-  // Manually check transaction status
-  const checkTransactionStatus = async () => {
-    if (!txHash) {
-      setError("No transaction to check");
-      return;
-    }
-    
-    setIsSpinning(true);
-    setError(null);
-    
-    try {
-      console.log("Manually checking transaction status:", txHash);
-      
-      // Use backup client for more reliable direct connection
-      const receipt = await backupPublicClient.getTransactionReceipt({ 
-        hash: txHash as `0x${string}` 
-      });
-      
-      if (receipt) {
-        console.log("Got receipt in manual check:", receipt);
-        processReceipt(receipt);
-      } else {
-        setError("Transaction still pending. Please try checking again later or view on BaseScan.");
-      }
-    } catch (error) {
-      console.error("Error in manual check:", error);
-      setError("Couldn't verify transaction. Try viewing on BaseScan.");
-    } finally {
-      setIsSpinning(false);
-    }
-  };
-
   const getResultText = () => {
     if (!isConnected) return "Connect wallet to play";
     if (!isRightNetwork) return "Switch to Base Sepolia to play";
@@ -428,14 +407,55 @@ export default function SlotMachine() {
   };
 
   const renderSlotSymbols = () => {
-    const symbols = ['🎰', '7️⃣', '💎', '🍒', '🎲', '🔔'];
-    return (
-      <div className={`slot-spin-content ${isSpinning ? 'spinning' : ''}`}>
-        {Array.from({ length: 20 }).map((_, i) => (
-          <div key={i} className="slot-icon">
-            {symbols[Math.floor(Math.random() * symbols.length)]}
+    // Display winning fairy combination for any win
+    if (isConnected && isTxSuccess && tier !== null && tier < 4) {
+      return (
+        <div className="flex justify-center items-center">
+          <div className="grid grid-cols-3 gap-4 items-center justify-items-center">
+            <div className="slot-symbol">
+              <img src="/fairy.png" alt="Fairy" className="w-full h-full object-contain p-1" />
+            </div>
+            <div className="slot-symbol">
+              <img src="/fairy.png" alt="Fairy" className="w-full h-full object-contain p-1" />
+            </div>
+            <div className="slot-symbol">
+              <img src="/fairy.png" alt="Fairy" className="w-full h-full object-contain p-1" />
+            </div>
           </div>
-        ))}
+        </div>
+      );
+    } 
+    
+    // Display default symbols when not spinning and no win
+    return (
+      <div className="flex justify-center items-center">
+        <div className="grid grid-cols-3 gap-2 items-center justify-items-center">
+          {isConnected && isTxSuccess && result !== null ? (
+            <>
+              <div className="slot-symbol">
+                <img src="/mario_8bit.png" alt="Mario" className="w-full h-full object-contain p-1" />
+              </div>
+              <div className="slot-symbol">
+                <img src="/base-logo-8bit.png" alt="Base" className="w-full h-full object-contain p-1" />
+              </div>
+              <div className="slot-symbol">
+                <img src="/mario_8bit.png" alt="Mario" className="w-full h-full object-contain p-1" />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="slot-symbol">
+                <img src="/base-logo-8bit.png" alt="Base" className="w-full h-full object-contain p-1" />
+              </div>
+              <div className="slot-symbol">
+                <img src="/base-logo-8bit.png" alt="Base" className="w-full h-full object-contain p-1" />
+              </div>
+              <div className="slot-symbol">
+                <img src="/base-logo-8bit.png" alt="Base" className="w-full h-full object-contain p-1" />
+              </div>
+            </>
+          )}
+        </div>
       </div>
     );
   };
@@ -458,112 +478,192 @@ export default function SlotMachine() {
     ));
   };
 
+  // Generate share text based on win tier
+  const getShareText = () => {
+    const baseUrl = "https://minibet.vercel.app";
+    let text = "";
+    
+    if (tier === 1) {
+      text = `🎰 JACKPOT! 🎰 I just won 0.1 ETH playing Minibet on @base! Try your luck at ${baseUrl}`;
+    } else if (tier === 2) {
+      text = `🎰 Big Win! 🎰 I just won 0.01 ETH playing Minibet on @base! Try your luck at ${baseUrl}`;
+    } else if (tier === 3) {
+      text = `🎰 I just won on Minibet, the slot machine on @base! Try your luck at ${baseUrl}`;
+    }
+    
+    return encodeURIComponent(text);
+  };
+  
+  // Share win on X (formerly Twitter)
+  const handleShare = () => {
+    const shareUrl = `https://twitter.com/intent/tweet?text=${getShareText()}`;
+    window.open(shareUrl, '_blank');
+  };
+
   return (
-    <>
-      <div className={`flex flex-col items-center justify-center p-6 pixel-card w-full max-w-[520px] mx-auto ${winClass}`}>
-        
-        <div className="bg-gradient-to-b from-slate-900 to-slate-800 w-full h-48 flex flex-col items-center justify-center rounded-lg mb-6 relative border-4 border-yellow-600 overflow-hidden casino-border">
-          {isSpinning ? (
-            <div className="flex justify-center items-center gap-4 z-10">
-              <div className="slot-spin text-4xl">
-                {renderSlotSymbols()}
-              </div>
-              <div className="slot-spin text-4xl">
-                {renderSlotSymbols()}
-              </div>
-              <div className="slot-spin text-4xl">
-                {renderSlotSymbols()}
-              </div>
-            </div>
-          ) : (
+    <div className="pixel-card relative overflow-hidden">
+      {/* Show jackpot celebration */}
+      <JackpotCelebration 
+        isVisible={showJackpot} 
+        payoutAmount={payout}
+        tier={tier}
+      />
+      
+      <div className={`relative z-10 flex flex-col items-center p-4 ${winClass}`}>
+        <div className="mb-6 w-full text-center">
+          {/* Display result/payout */}
+          {isConnected && isTxSuccess && result !== null && (
             <>
-              <div className="text-xl font-bold text-white z-20">
+              <div className="text-xl font-bold mb-2">
                 {getResultText()}
               </div>
-              
-              {result !== null && (
-                <div className="text-xl mt-2 text-yellow-400 font-mono">
-                  {result.toString().padStart(3, '0')}
+              {tier !== null && tier < 4 && (
+                <div className="text-2xl font-bold text-yellow-400">
+                  {getPayoutText()}
                 </div>
               )}
               
-              {createCoins()}
+              {/* Share button - Updated styling */}
+              {showShareButton && (
+                <button
+                  onClick={handleShare}
+                  className="mt-4 bg-black hover:bg-zinc-800 text-white font-bold py-2 px-6 rounded pixel-button-alt flex items-center justify-center transition-all duration-200 transform hover:scale-105"
+                >
+                  <span className="mr-2">Share Win</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M13.6823 10.6218L20.2391 3H18.6854L12.9921 9.61788L8.44486 3H3.2002L10.0765 13.0074L3.2002 21H4.75404L10.7663 14.0113L15.5685 21H20.8131L13.6819 10.6218H13.6823ZM11.5541 13.0956L10.8574 12.0991L5.31391 4.16971H7.70053L12.1742 10.5689L12.8709 11.5655L18.6861 19.8835H16.2995L11.5541 13.096V13.0956Z"/>
+                  </svg>
+                </button>
+              )}
             </>
           )}
           
-          {getPayoutText() && txHash && (
-            <div className="absolute bottom-2 font-semibold text-lg">
-              <a 
-                href={`https://sepolia.basescan.org/tx/${txHash}`} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-green-400 hover:text-yellow-300 transition-colors flex items-center justify-center gap-1 border-b border-green-400/50 hover:border-yellow-300/70 pb-0.5"
-              >
-                {getPayoutText()} <span className="inline-block">🔗</span>
-              </a>
-            </div>
+          {/* Error message */}
+          {error && (
+            <div className="text-red-500 text-sm mt-2">{error}</div>
           )}
         </div>
         
-        {txPending && txHash ? (
-          <button
-            onClick={checkTransactionStatus}
-            disabled={isSpinning}
-            className={`px-8 py-4 font-bold pixel-button
-              ${isSpinning 
-                ? "opacity-50 cursor-not-allowed" 
-                : ""
-              }`}
-          >
-            {isSpinning ? "Checking..." : "Check Result"}
-          </button>
-        ) : (
-          <button
-            onClick={handleSpin}
-            disabled={!isConnected || isSpinning || !isRightNetwork || !walletClient}
-            className="px-8 py-4 font-bold transform pixel-button"
-          >
-            {isSpinning ? "Spinning..." : "Spin (0.001 ETH)"}
-          </button>
-        )}
-        
-        {isConnected && (
-          <div className="mt-6 text-sm pixel-card w-full">
-            <p className="text-center font-medium mb-2 text-blue-300 uppercase">Winning Combinations</p>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="text-right">Jackpot (0.1%):</div>
-              <div className="font-bold text-yellow-400">0.1 ETH</div>
-              <div className="text-right">Big Win (2%):</div>
-              <div className="font-bold text-green-400">0.01 ETH</div>
-              <div className="text-right">Small Win (10%):</div>
-              <div className="font-bold text-blue-400">0.002 ETH</div>
-            </div>
+        {/* Slot machine display */}
+        <div className="w-full mb-6">
+          <div className="bg-gray-900 border-4 border-yellow-500 rounded-lg p-4 flex justify-center items-center relative overflow-hidden h-40">
+            {renderSlotSymbols()}
+            
+            {/* Enhanced spinning animation with pixel art */}
+            {isSpinning && (
+              <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                <div className="flex justify-center items-center gap-4">
+                  <div className="slot-machine-reel">
+                    <div className="slot-machine-symbols">
+                      <div className="slot-symbol-container">
+                        <img src="/mario_8bit.png" alt="Mario" className="slot-symbol-img" />
+                      </div>
+                      <div className="slot-symbol-container">
+                        <img src="/fairy.png" alt="Fairy" className="slot-symbol-img" />
+                      </div>
+                      <div className="slot-symbol-container">
+                        <img src="/base-logo-8bit.png" alt="Base" className="slot-symbol-img" />
+                      </div>
+                      <div className="slot-symbol-container">
+                        <img src="/mario_8bit.png" alt="Mario" className="slot-symbol-img" />
+                      </div>
+                      <div className="slot-symbol-container">
+                        <img src="/fairy.png" alt="Fairy" className="slot-symbol-img" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="slot-machine-reel delay-100">
+                    <div className="slot-machine-symbols">
+                      <div className="slot-symbol-container">
+                        <img src="/fairy.png" alt="Fairy" className="slot-symbol-img" />
+                      </div>
+                      <div className="slot-symbol-container">
+                        <img src="/base-logo-8bit.png" alt="Base" className="slot-symbol-img" />
+                      </div>
+                      <div className="slot-symbol-container">
+                        <img src="/mario_8bit.png" alt="Mario" className="slot-symbol-img" />
+                      </div>
+                      <div className="slot-symbol-container">
+                        <img src="/fairy.png" alt="Fairy" className="slot-symbol-img" />
+                      </div>
+                      <div className="slot-symbol-container">
+                        <img src="/base-logo-8bit.png" alt="Base" className="slot-symbol-img" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="slot-machine-reel delay-200">
+                    <div className="slot-machine-symbols">
+                      <div className="slot-symbol-container">
+                        <img src="/base-logo-8bit.png" alt="Base" className="slot-symbol-img" />
+                      </div>
+                      <div className="slot-symbol-container">
+                        <img src="/mario_8bit.png" alt="Mario" className="slot-symbol-img" />
+                      </div>
+                      <div className="slot-symbol-container">
+                        <img src="/fairy.png" alt="Fairy" className="slot-symbol-img" />
+                      </div>
+                      <div className="slot-symbol-container">
+                        <img src="/base-logo-8bit.png" alt="Base" className="slot-symbol-img" />
+                      </div>
+                      <div className="slot-symbol-container">
+                        <img src="/mario_8bit.png" alt="Mario" className="slot-symbol-img" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Transaction pending overlay */}
+            {txPending && !isSpinning && (
+              <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                <div className="text-lg text-white">
+                  <div className="animate-spin mb-2 mx-auto h-8 w-8 border-t-2 border-b-2 border-white rounded-full"></div>
+                  <div>Transaction Pending</div>
+                  {txHash && (
+                    <a 
+                      href={`https://sepolia.basescan.org/tx/${txHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-400 text-sm underline"
+                    >
+                      View on BaseScan
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
-        )}
-
-        <div className="mt-6 text-xs text-blue-300">
-          <p className="text-center">
-            Connected to contract on Base Sepolia<br/>
-            Contract: {contractAddress.slice(0,6)}...{contractAddress.slice(-4)}
-          </p>
         </div>
         
-        {/* Simple transaction link for all cases */}
-        {txHash && (!tier || tier >= 4) && (
-          <div className="mt-2 text-xs">
-            <a 
-              href={`https://sepolia.basescan.org/tx/${txHash}`} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-yellow-400 hover:text-yellow-300 underline"
-            >
-              View Transaction on BaseScan
-            </a>
+        {/* Spin button */}
+        <button
+          className={`pixel-button w-full py-3 text-lg font-bold ${
+            !isConnected || !isRightNetwork || isSpinning || txPending
+              ? "opacity-50 cursor-not-allowed"
+              : "hover:bg-opacity-90"
+          }`}
+          onClick={handleSpin}
+          disabled={!isConnected || !isRightNetwork || isSpinning || txPending}
+        >
+          {!isConnected ? (
+            "Connect Wallet to Play"
+          ) : !isRightNetwork ? (
+            "Switch to Base Sepolia"
+          ) : isSpinning || txPending ? (
+            "Please wait..."
+          ) : (
+            "SPIN (0.001 ETH)"
+          )}
+        </button>
+        
+        {/* Network info */}
+        {isConnected && !isRightNetwork && (
+          <div className="text-yellow-400 text-xs mt-2">
+            Please switch to Base Sepolia testnet to play
           </div>
         )}
       </div>
-      
-      <JackpotCelebration isVisible={showJackpot} />
-    </>
+    </div>
   );
 } 

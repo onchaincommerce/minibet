@@ -290,3 +290,213 @@ body {
 .scrollbar-slim::-webkit-scrollbar-thumb:hover {
   background: rgba(51, 170, 255, 0.8);
 }
+
+/* Updated slot machine animations and symbols */
+.slot-symbol {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 70px;
+  height: 70px;
+  background: linear-gradient(145deg, #2e2e6e, #1a1a4a);
+  border-radius: 6px;
+  border: 2px solid #ffcd00;
+  font-size: 24px;
+  font-weight: bold;
+  color: #ffcd00;
+  box-shadow: 0 0 10px rgba(255, 205, 0, 0.3);
+  text-shadow: 0 0 5px rgba(255, 205, 0, 0.5);
+  overflow: hidden;
+}
+
+.slot-symbol img {
+  image-rendering: pixelated;
+  max-width: 100%;
+  max-height: 100%;
+  padding: 2px;
+}
+
+.slot-machine-reel {
+  width: 70px;
+  height: 70px;
+  overflow: hidden;
+  border-radius: 6px;
+  border: 2px solid #ffcd00;
+  position: relative;
+  background-color: #1a1a4a;
+  box-shadow: 0 0 10px rgba(255, 205, 0, 0.3);
+}
+
+.slot-machine-symbols {
+  display: flex;
+  flex-direction: column;
+  animation: slot-machine-spin 0.7s linear infinite;
+}
+
+.slot-symbol-container {
+  width: 70px;
+  height: 70px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2px;
+}
+
+.slot-symbol-img {
+  width: 85%;
+  height: 85%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.slot-machine-reel.delay-100 .slot-machine-symbols {
+  animation-delay: 0.1s;
+}
+
+.slot-machine-reel.delay-200 .slot-machine-symbols {
+  animation-delay: 0.2s;
+}
+
+@keyframes slot-machine-spin {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-350px);
+  }
+}
+
+/* X share button styles */
+.pixel-button-alt {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.2s;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+}
+
+.pixel-button-alt:before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
+  transition: all 0.3s;
+}
+
+.pixel-button-alt:hover:before {
+  left: 100%;
+}
+
+/* Remove old slot reel animations that are no longer needed */
+.animate-slot-spin {
+  animation: none;
+}
+
+.animation-delay-100, .animation-delay-200 {
+  animation-delay: 0s;
+}
+
+.slot-reel {
+  display: none;
+}
+
+/* Win Animation Classes */
+.glow-text-yellow {
+  text-shadow: 0 0 10px #FFC107, 0 0 20px #FFC107, 0 0 30px #FFC107;
+}
+
+.glow-text-green {
+  text-shadow: 0 0 10px #4CAF50, 0 0 20px #4CAF50, 0 0 30px #4CAF50;
+}
+
+.glow-text-blue {
+  text-shadow: 0 0 10px #2196F3, 0 0 20px #2196F3, 0 0 30px #2196F3;
+}
+
+/* Enhanced Win Animations */
+@keyframes win-pulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 rgba(255, 205, 0, 0); }
+  50% { transform: scale(1.05); box-shadow: 0 0 20px rgba(255, 205, 0, 0.4); }
+  100% { transform: scale(1); box-shadow: 0 0 0 rgba(255, 205, 0, 0); }
+}
+
+.win-flash {
+  animation: win-pulse 0.5s ease-in-out 3;
+}
+
+.jackpot {
+  animation: win-pulse 0.5s ease-in-out 5;
+}
+
+/* Floating fairy animations */
+.pixelated {
+  image-rendering: pixelated;
+}
+
+.floating-fairy {
+  position: absolute;
+  opacity: 0.8;
+  animation-name: float-fairy;
+  animation-duration: 8s;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+.fairy-1 {
+  top: 15%;
+  left: 20%;
+  animation-delay: 0s;
+}
+
+.fairy-2 {
+  top: 30%;
+  right: 15%;
+  animation-delay: 1.5s;
+  animation-duration: 7s;
+}
+
+.fairy-3 {
+  bottom: 25%;
+  left: 30%;
+  animation-delay: 3s;
+  animation-duration: 9s;
+}
+
+.fairy-4 {
+  bottom: 35%;
+  right: 25%;
+  animation-delay: 4.5s;
+  animation-duration: 8.5s;
+}
+
+.fairy-5 {
+  top: 50%;
+  left: 50%;
+  animation-delay: 2s;
+  animation-duration: 6.5s;
+}
+
+@keyframes float-fairy {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  25% {
+    transform: translate(20px, -15px) rotate(5deg);
+  }
+  50% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  75% {
+    transform: translate(-20px, 15px) rotate(-5deg);
+  }
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+}
