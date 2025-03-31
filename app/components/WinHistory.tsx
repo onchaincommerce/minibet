@@ -2,50 +2,106 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { createPublicClient, http, formatEther } from "viem";
-import { baseSepolia } from "wagmi/chains";
+import { base } from "wagmi/chains";
 import { useAccount } from "wagmi";
 
 // Deployed contract address
-const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x3C4883E9eE3FAa7A014e6c656138e7dDc049E754";
+const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x5dbC37976af0e9A4ded0D2C02e0559Fa96E6B4F0";
 
-// Create a backup public client using a public RPC endpoint
+// Create a public client using a public RPC endpoint
 const publicClient = createPublicClient({
-  chain: baseSepolia,
-  transport: http('https://sepolia.base.org')
+  chain: base,
+  transport: http('https://base.blockpi.network/v1/rpc/public')
 });
+
+// Contract ABI for user stats
+const userStatsAbi = [
+  {
+    inputs: [{ internalType: "address", name: "user", type: "address" }],
+    name: "getUserStats",
+    outputs: [
+      { internalType: "uint256", name: "spins", type: "uint256" },
+      { internalType: "uint256", name: "winnings", type: "uint256" },
+      { internalType: "uint256", name: "spent", type: "uint256" },
+      { internalType: "int256", name: "netProfit", type: "int256" }
+    ],
+    stateMutability: "view",
+    type: "function"
+  }
+];
 
 // Types for win history
 type WinRecord = {
-  txHash: string;
-  spinId: bigint;
+  spinId: number;
   result: number;
   payout: string;
   tier: number;
-  timestamp: number;
+  timestamp: string;
+};
+
+type UserStats = {
+  spins: bigint;
+  winnings: bigint;
+  spent: bigint;
+  netProfit: bigint;
+};
+
+type SpinResultArgs = {
+  spinId: bigint;
+  player: string;
+  result: bigint;
+  payout: bigint;
+  tier: number;
 };
 
 export default function WinHistory() {
   const { address, isConnected } = useAccount();
   const [winHistory, setWinHistory] = useState<WinRecord[]>([]);
+  const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'wins' | 'all'>('wins');
+
+  // Function to fetch user stats
+  const fetchUserStats = useCallback(async () => {
+    if (!address || !isConnected) return;
+    
+    try {
+      const stats = await publicClient.readContract({
+        address: contractAddress as `0x${string}`,
+        abi: userStatsAbi,
+        functionName: 'getUserStats',
+        args: [address]
+      }) as [bigint, bigint, bigint, bigint];
+      
+      setUserStats({
+        spins: stats[0],
+        winnings: stats[1],
+        spent: stats[2],
+        netProfit: stats[3]
+      });
+    } catch (error) {
+      console.error("Error fetching user stats:", error);
+    }
+  }, [address, isConnected]);
 
   // Function to fetch win history, wrapped in useCallback
   const fetchWinHistory = useCallback(async () => {
-    if (!address || !isConnected) {
-      setWinHistory([]);
-      return;
-    }
+    if (!address) return;
     
-    setIsLoading(true);
     try {
       console.log("Fetching win history for address:", address);
       
-      // Get logs for SpinResult events where the user (address) was the player
-      // and the payout was greater than 0 (a win)
+      // Get current block number
+      const currentBlock = await publicClient.getBlockNumber();
+      // Start from 1000 blocks ago to limit the search
+      const fromBlock = currentBlock - BigInt(1000);
+      
+      console.log("Fetching logs from block:", fromBlock.toString());
+      
       const logs = await publicClient.getLogs({
         address: contractAddress as `0x${string}`,
         event: {
-          anonymous: false,
           inputs: [
             { indexed: true, name: 'spinId', type: 'uint256' },
             { indexed: true, name: 'player', type: 'address' },
@@ -54,98 +110,50 @@ export default function WinHistory() {
             { indexed: false, name: 'tier', type: 'uint8' }
           ],
           name: 'SpinResult',
-          type: 'event',
+          type: 'event'
         },
         args: {
-          player: address as `0x${string}`
+          player: address
         },
-        fromBlock: 'earliest',
+        fromBlock,
         toBlock: 'latest'
       });
       
-      console.log(`Found ${logs.length} logs for user ${address}`);
+      console.log("Found logs:", logs);
       
-      // Process logs and filter for wins (payout > 0)
-      const winLogs = await Promise.all(logs.map(async (log) => {
-        // Extract data from the log
-        try {
-          // The data layout in the log depends on which parameters are indexed
-          // For SpinResult(uint256 indexed spinId, address indexed player, uint256 result, uint256 payout, uint8 tier)
-          // - topics[0] = event signature hash
-          // - topics[1] = spinId (indexed)
-          // - topics[2] = player address (indexed)
-          // - data = concatenated non-indexed params: result (32 bytes) + payout (32 bytes) + tier (32 bytes but only using 1 byte)
-          
-          if (!log.data || log.data === '0x') {
-            console.error("Log data is empty");
-            return null;
-          }
-          
-          // Get transaction details to get timestamp
-          const txReceipt = await publicClient.getTransactionReceipt({
-            hash: log.transactionHash,
-          });
-          
-          const block = await publicClient.getBlock({
-            blockHash: txReceipt.blockHash,
-          });
-          
-          // Remove the '0x' prefix from the data
-          const data = log.data.startsWith('0x') ? log.data.slice(2) : log.data;
-          
-          // Extract result value (first 32 bytes / 64 hex chars)
-          const resultHex = data.substring(0, 64);
-          const result = parseInt(resultHex, 16);
-          
-          // Extract payout value (next 32 bytes / 64 hex chars)
-          const payoutHex = data.substring(64, 128);
-          const payoutWei = BigInt("0x" + payoutHex);
-          const payoutEth = formatEther(payoutWei);
-          
-          // Extract tier value (last 32 bytes / 64 hex chars, but only using the last byte)
-          // It's uint8 but padded to 32 bytes in the ABI encoding
-          const tierHex = data.substring(128);
-          const tier = parseInt(tierHex.slice(-2), 16);
-          
-          // Only include wins (tier < 4)
-          if (tier >= 4 || payoutWei === BigInt(0)) {
-            return null;
-          }
-          
-          return {
-            txHash: log.transactionHash,
-            spinId: log.topics[1] ? BigInt(log.topics[1]) : BigInt(0),
-            result,
-            payout: payoutEth,
-            tier,
-            timestamp: Number(block.timestamp)
-          };
-        } catch (error) {
-          console.error("Error processing log:", error);
-          return null;
-        }
-      }));
+      // Process logs into history
+      const history = logs.map(log => {
+        const args = log.args as SpinResultArgs;
+        return {
+          spinId: Number(args.spinId),
+          result: Number(args.result),
+          payout: formatEther(args.payout),
+          tier: args.tier,
+          timestamp: new Date().toISOString()
+        } as WinRecord;
+      });
       
-      // Filter out null values and sort by timestamp (newest first)
-      const validWins = winLogs.filter(Boolean) as WinRecord[];
-      validWins.sort((a, b) => b.timestamp - a.timestamp);
+      // Sort by spinId in descending order (newest first)
+      history.sort((a, b) => b.spinId - a.spinId);
       
-      setWinHistory(validWins);
+      setWinHistory(history);
+      setIsLoading(false);
     } catch (error) {
-      console.error("Error fetching win history:", error);
-    } finally {
+      console.error("Error fetching history:", error);
+      setError("Failed to load history. Please try again later.");
       setIsLoading(false);
     }
-  }, [address, isConnected]);
+  }, [address]);
 
-  // Fetch win history when address changes
+  // Fetch data when address changes
   useEffect(() => {
+    fetchUserStats();
     fetchWinHistory();
-  }, [fetchWinHistory]);
+  }, [fetchUserStats, fetchWinHistory]);
 
   if (!isConnected) {
     return (
-      <div className="w-full h-48 flex items-center justify-center text-center text-gray-400">
+      <div className="w-full h-48 flex items-center justify-center text-center text-gray-400 press-start">
         Connect your wallet to view win history
       </div>
     );
@@ -153,16 +161,8 @@ export default function WinHistory() {
 
   if (isLoading) {
     return (
-      <div className="w-full h-48 flex items-center justify-center text-center">
-        <div className="animate-pulse">Loading wins...</div>
-      </div>
-    );
-  }
-
-  if (winHistory.length === 0) {
-    return (
-      <div className="w-full h-48 flex items-center justify-center text-center text-yellow-400">
-        No wins found yet. Keep spinning!
+      <div className="w-full h-48 flex items-center justify-center text-center press-start">
+        <div className="animate-pulse">Loading stats...</div>
       </div>
     );
   }
@@ -178,24 +178,95 @@ export default function WinHistory() {
   };
 
   // Format date from unix timestamp
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp * 1000).toLocaleDateString();
+  const formatDate = (timestamp: string) => {
+    const date = new Date(timestamp);
+    return date.toLocaleDateString();
   };
 
   // Check if a win is recent (within the last hour)
-  const isRecentWin = (timestamp: number) => {
+  const isRecentWin = (timestamp: string) => {
     const now = Math.floor(Date.now() / 1000);
-    const oneHourAgo = now - 3600; // 1 hour in seconds
-    return timestamp > oneHourAgo;
+    const oneHourAgo = now - 3600;
+    const date = new Date(timestamp);
+    const timestampSeconds = Math.floor(date.getTime() / 1000);
+    return timestampSeconds > oneHourAgo;
   };
 
+  // Filter history based on viewMode
+  const filteredHistory = winHistory.filter(record => 
+    viewMode === 'all' ? true : record.tier < 4
+  );
+
   return (
-    <div className="w-full">
-      <div className="flex justify-end mb-3">
+    <div className="w-full press-start">
+      {error && (
+        <div className="mb-4 text-red-400 text-sm">
+          {error}
+        </div>
+      )}
+      
+      {/* Stats Section */}
+      {userStats && (
+        <div className="mb-6 p-4 bg-slate-900/70 rounded-lg border border-blue-700/50">
+          <h3 className="text-lg font-bold text-blue-300 mb-4">Your Statistics</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <div className="text-sm text-gray-400">Total Spins</div>
+              <div className="text-lg font-bold text-yellow-400">{userStats.spins.toString()}</div>
+            </div>
+            <div>
+              <div className="text-sm text-gray-400">Total Winnings</div>
+              <div className="text-lg font-bold text-green-400">{formatEther(userStats.winnings)} ETH</div>
+            </div>
+            <div>
+              <div className="text-sm text-gray-400">Total Spent</div>
+              <div className="text-lg font-bold text-red-400">{formatEther(userStats.spent)} ETH</div>
+            </div>
+            <div>
+              <div className="text-sm text-gray-400">Net Profit/Loss</div>
+              <div className={`text-lg font-bold ${userStats.netProfit >= BigInt(0) ? 'text-green-400' : 'text-red-400'}`}>
+                {formatEther(userStats.netProfit >= BigInt(0) ? userStats.netProfit : -userStats.netProfit)} ETH
+                {userStats.netProfit < BigInt(0) ? ' (Loss)' : ' (Profit)'}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* History Section Header with Filter */}
+      <div className="flex justify-between items-center mb-3">
+        <div className="flex items-center gap-4">
+          <h3 className="text-lg font-bold text-blue-300">History</h3>
+          <div className="flex bg-slate-800 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode('wins')}
+              className={`px-3 py-1 text-xs rounded-md transition-colors press-start ${
+                viewMode === 'wins'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Wins Only
+            </button>
+            <button
+              onClick={() => setViewMode('all')}
+              className={`px-3 py-1 text-xs rounded-md transition-colors press-start ${
+                viewMode === 'all'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              All Spins
+            </button>
+          </div>
+        </div>
         <button
-          onClick={fetchWinHistory}
+          onClick={() => {
+            fetchUserStats();
+            fetchWinHistory();
+          }}
           disabled={isLoading}
-          className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed px-2 py-1 border border-blue-700/30 rounded-md"
+          className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed px-2 py-1 border border-blue-700/30 rounded-md press-start"
         >
           {isLoading ? (
             <span className="animate-pulse">Refreshing...</span>
@@ -204,52 +275,61 @@ export default function WinHistory() {
               <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
-              Refresh History
+              Refresh
             </>
           )}
         </button>
       </div>
-      <div className="h-[450px] overflow-y-auto pr-2 scrollbar-slim">
-        <div className="space-y-3">
-          {winHistory.map((win, index) => (
-            <div key={index} className="w-full bg-slate-900/70 p-3 rounded-lg border border-blue-700/50">
-              <div className="flex justify-between items-center">
-                <div className="text-sm font-bold text-yellow-400 flex items-center gap-2">
-                  {getTierDescription(win.tier)}
-                  {isRecentWin(win.timestamp) && (
-                    <span className="text-xs bg-green-900/70 text-green-400 px-1.5 py-0.5 rounded-sm animate-pulse">
-                      NEW
-                    </span>
-                  )}
-                </div>
-                <div className="text-xs text-gray-400">
-                  {formatDate(win.timestamp)}
-                </div>
-              </div>
-              
-              <div className="mt-2 text-sm">
-                <div className="font-mono text-green-400">
-                  {win.payout} ETH
-                </div>
-                <div className="mt-1 text-xs text-blue-300">
-                  Result: {win.result.toString().padStart(3, '0')}
-                </div>
-              </div>
-              
-              <div className="mt-2 text-xs">
-                <a 
-                  href={`https://sepolia.basescan.org/tx/${win.txHash}`} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-blue-400 hover:text-blue-300 underline text-xs"
-                >
-                  View TX
-                </a>
-              </div>
-            </div>
-          ))}
+
+      {filteredHistory.length === 0 ? (
+        <div className="w-full h-48 flex items-center justify-center text-center text-yellow-400 press-start">
+          {viewMode === 'wins' 
+            ? "No wins found yet. Keep spinning!"
+            : "No spins found yet. Start playing!"}
         </div>
-      </div>
+      ) : (
+        <div className="h-[450px] overflow-y-auto pr-2 scrollbar-slim">
+          <div className="space-y-3">
+            {filteredHistory.map((record, index) => (
+              <div key={index} className="w-full bg-slate-900/70 p-3 rounded-lg border border-blue-700/50">
+                <div className="flex justify-between items-center">
+                  <div className="text-sm font-bold text-yellow-400 flex items-center gap-2">
+                    {record.tier < 4 ? getTierDescription(record.tier) : "No Win"}
+                    {isRecentWin(record.timestamp) && (
+                      <span className="text-xs bg-green-900/70 text-green-400 px-1.5 py-0.5 rounded-sm animate-pulse press-start">
+                        NEW
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-400">
+                    {formatDate(record.timestamp)}
+                  </div>
+                </div>
+                
+                <div className="mt-2 text-sm">
+                  <div className={`font-mono ${record.tier < 4 ? 'text-green-400' : 'text-gray-400'}`}>
+                    {record.payout} ETH
+                  </div>
+                  <div className="mt-1 text-xs text-blue-300">
+                    Result: {record.result.toString().padStart(3, '0')}
+                  </div>
+                </div>
+                
+                <div className="mt-2 text-xs">
+                  <a 
+                    href={`https://basescan.org/tx/${record.spinId}`} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:text-blue-300 underline text-xs press-start"
+                  >
+                    View TX
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

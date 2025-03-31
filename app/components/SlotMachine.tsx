@@ -2,19 +2,20 @@
 
 import { useState, useEffect } from "react";
 import { useAccount, useWalletClient } from "wagmi";
-import { parseEther, createPublicClient, http } from "viem";
+import { parseEther, createPublicClient, http, formatEther } from "viem";
 import { useNotification } from "@coinbase/onchainkit/minikit";
-import { baseSepolia } from "wagmi/chains";
+import { base } from "wagmi/chains";
 import Image from "next/image";
 import JackpotCelebration from "./JackpotCelebration";
+import { soundManager } from "../lib/sounds";
 
 // This is the deployed contract address
-const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x3C4883E9eE3FAa7A014e6c656138e7dDc049E754";
+const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x79931DEa9E94F1fe240DCD7Cbf93f853B681bC7C";
 
 // Create a backup public client using a public RPC endpoint
 const backupPublicClient = createPublicClient({
-  chain: baseSepolia,
-  transport: http('https://sepolia.base.org')
+  chain: base,
+  transport: http('https://mainnet.base.org')
 });
 
 // Contract ABI with expanded event details
@@ -45,9 +46,8 @@ const contractAbi = [
 
 // Alternative event signatures to try (Solidity compilers might generate different signatures)
 const EVENT_SIGNATURES = [
-  "0x8b2f242d32371a41f80f3dcf16124d8271bbedc9ded98b620290046aac8a1d8c", // Actual observed signature from contract logs
-  "0x5c4a8f396d7cd416a8bd3a08e0b15ee3a667a30511f11458789b5440c3c97b39", // Standard keccak256 calculation
-  "0xe74057471b97cf835463160e8c3dc1c10607f253359874c66f3691ab3df705ee"  // Alternative format
+  "0x5c4a8f396d7cd416a8bd3a08e0b15ee3a667a30511f11458789b5440c3c97b39",  // V2 contract signature
+  "0x8b2f242d32371a41f80f3dcf16124d8271bbedc9ded98b620290046aac8a1d8c",  // V1 signature (kept for reference)
 ];
 
 // Define a more specific type for the receipt
@@ -77,12 +77,13 @@ export default function SlotMachine() {
   const [winClass, setWinClass] = useState<string>("");
   const [showJackpot, setShowJackpot] = useState(false);
   const [showShareButton, setShowShareButton] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
   
   // Get wallet client to sign transactions
   const { data: walletClient } = useWalletClient();
   
-  // Check if user is on the right network (Base Sepolia)
-  const isRightNetwork = chainId === baseSepolia.id;
+  // Check if user is on the right network (Base mainnet)
+  const isRightNetwork = chainId === base.id;
 
   // Reset state when connecting/disconnecting
   useEffect(() => {
@@ -120,6 +121,39 @@ export default function SlotMachine() {
     }
   }, [tier]);
 
+  // Initialize sound system on component mount
+  useEffect(() => {
+    // Initialize sound engine on first user interaction
+    const initSounds = async () => {
+      await soundManager.init();
+      // Set initial mute state
+      setIsMuted(soundManager.isMuted());
+    };
+    
+    // Add one-time listener for user interaction
+    const handleInteraction = async () => {
+      await initSounds();
+      // Remove listeners after initialization
+      document.removeEventListener('click', handleInteraction);
+      document.removeEventListener('touchstart', handleInteraction);
+    };
+    
+    document.addEventListener('click', handleInteraction);
+    document.addEventListener('touchstart', handleInteraction);
+    
+    return () => {
+      document.removeEventListener('click', handleInteraction);
+      document.removeEventListener('touchstart', handleInteraction);
+    };
+  }, []);
+
+  // Toggle sound mute
+  const handleToggleMute = () => {
+    soundManager.buttonClick(); // Play click before muting
+    const newMuteState = soundManager.toggleMute();
+    setIsMuted(newMuteState);
+  };
+
   // Process transaction receipt to extract SpinResult event
   const processReceipt = (receipt: TransactionReceipt) => {
     if (!receipt) {
@@ -135,10 +169,17 @@ export default function SlotMachine() {
     
     console.log(`Processing receipt with ${receipt.logs.length} logs`);
     
+    // Log all event signatures we're looking for
+    console.log("Expected event signatures:", EVENT_SIGNATURES);
+    
     for (const log of receipt.logs) {
-      console.log("Examining log:", {
+      console.log("Processing log:", {
         address: log.address,
+        contractAddress,
+        addressMatch: log.address.toLowerCase() === contractAddress.toLowerCase(),
         topics: log.topics,
+        eventSignature: log.topics?.[0],
+        signatureMatch: log.topics?.[0] && EVENT_SIGNATURES.includes(log.topics[0]),
         data: log.data
       });
       
@@ -215,10 +256,10 @@ export default function SlotMachine() {
           setWinClass("win-flash");
         }
         
-        // Trigger notification for wins
+        // Send notification for wins
         if (tier < 4 && address) {
           sendNotification({
-            title: tier === 1 ? "JACKPOT!" : tier === 2 ? "Big Win!" : "Small Win!",
+            title: tier === 1 ? "JACKPOT! 🎉" : tier === 2 ? "Big Win! 🎊" : "👍 Small Win!",
             body: `You won ${payoutEth} ETH! TX: ${txHash ? txHash.slice(0, 6) + '...' + txHash.slice(-4) : ''}`
           });
         }
@@ -315,15 +356,42 @@ export default function SlotMachine() {
     return false;
   };
 
+  // Add contract balance check function
+  const checkContractBalance = async () => {
+    try {
+      const balance = await backupPublicClient.getBalance({
+        address: contractAddress as `0x${string}`
+      });
+      console.log("Contract balance:", {
+        wei: balance.toString(),
+        eth: Number(balance) / 1e18
+      });
+      return balance;
+    } catch (error) {
+      console.error("Error checking contract balance:", error);
+      return null;
+    }
+  };
+
   // Handle the spin function
   const handleSpin = async () => {
     if (!isConnected || isSpinning || !walletClient) return;
     
+    // Check contract balance first
+    const balance = await checkContractBalance();
+    if (balance !== null) {
+      // Log balance for debugging
+      console.log("Pre-spin contract balance:", formatEther(balance), "ETH");
+    }
+    
     // Check if on the right network
     if (!isRightNetwork) {
-      setError(`Please switch to Base Sepolia testnet`);
+      setError(`Please switch to Base mainnet`);
       return;
     }
+    
+    // Play spin start sound
+    soundManager.spinStart();
     
     setIsSpinning(true);
     setIsTxSuccess(false);
@@ -344,7 +412,10 @@ export default function SlotMachine() {
         address: contractAddress as `0x${string}`,
         abi: contractAbi,
         functionName: 'spin',
-        value: parseEther('0.001')
+        value: parseEther('0.001'),
+        gas: BigInt(300000), // Explicitly set higher gas limit
+        account: address as `0x${string}`,
+        chain: base // Explicitly specify the chain
       });
       
       console.log("Transaction submitted:", hash);
@@ -370,6 +441,23 @@ export default function SlotMachine() {
       }
     } catch (error: unknown) {
       console.error("Error spinning:", error);
+      // Log detailed error information
+      if (error instanceof Error) {
+        const errorDetails: Record<string, unknown> = {
+          message: error.message,
+          name: error.name,
+          stack: error.stack
+        };
+
+        // Add viem-specific error properties if they exist
+        const viemError = error as { details?: unknown; shortMessage?: string; cause?: unknown };
+        if (viemError.details) errorDetails.details = viemError.details;
+        if (viemError.shortMessage) errorDetails.shortMessage = viemError.shortMessage;
+        if (viemError.cause) errorDetails.cause = viemError.cause;
+
+        console.error("Error details:", errorDetails);
+      }
+      
       // Handle user rejection separately
       if (error instanceof Error && error.message && error.message.includes('rejected')) {
         setError("Transaction rejected. Please try again.");
@@ -384,9 +472,30 @@ export default function SlotMachine() {
     }
   };
 
+  // Simulate reels stopping (for sound effects)
+  useEffect(() => {
+    if (isTxSuccess && tier !== null) {
+      // Simulate reels stopping with slight delays
+      setTimeout(() => soundManager.reelStop(0), 300);
+      setTimeout(() => soundManager.reelStop(1), 600);
+      setTimeout(() => soundManager.reelStop(2), 900);
+      
+      // Play appropriate win/loss sound after reels stop
+      setTimeout(() => {
+        if (tier === 1) {
+          soundManager.jackpot();
+        } else if (tier < 4) {
+          soundManager.win(tier);
+        } else {
+          soundManager.loss();
+        }
+      }, 1200);
+    }
+  }, [isTxSuccess, tier]);
+
   const getResultText = () => {
     if (!isConnected) return "Connect wallet to play";
-    if (!isRightNetwork) return "Switch to Base Sepolia to play";
+    if (!isRightNetwork) return "Switch to Base to play";
     if (isSpinning) return "Spinning...";
     if (error) return error;
     if (txPending) return "Transaction pending. Check BaseScan for status.";
@@ -479,6 +588,7 @@ export default function SlotMachine() {
   
   // Share win on X (formerly Twitter)
   const handleShare = () => {
+    soundManager.buttonClick();
     const shareUrl = `https://twitter.com/intent/tweet?text=${getShareText()}`;
     window.open(shareUrl, '_blank');
   };
@@ -491,6 +601,32 @@ export default function SlotMachine() {
         payoutAmount={payout}
         tier={tier}
       />
+      
+      {/* Sound control button */}
+      <button 
+        onClick={handleToggleMute}
+        className="absolute top-2 right-2 z-20 bg-gray-800 bg-opacity-50 rounded-full p-2 hover:bg-opacity-70 transition-opacity"
+        aria-label={isMuted ? "Unmute sounds" : "Mute sounds"}
+      >
+        {isMuted ? (
+          // Muted icon
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
+            <line x1="1" y1="1" x2="23" y2="23"></line>
+            <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path>
+            <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path>
+            <line x1="12" y1="19" x2="12" y2="23"></line>
+            <line x1="8" y1="23" x2="16" y2="23"></line>
+          </svg>
+        ) : (
+          // Unmuted icon
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+            <line x1="12" y1="19" x2="12" y2="23"></line>
+            <line x1="8" y1="23" x2="16" y2="23"></line>
+          </svg>
+        )}
+      </button>
       
       <div className={`relative z-10 flex flex-col items-center p-4 ${winClass}`}>
         <div className="mb-6 w-full text-center">
@@ -605,7 +741,7 @@ export default function SlotMachine() {
                   <div>Transaction Pending</div>
                   {txHash && (
                     <a 
-                      href={`https://sepolia.basescan.org/tx/${txHash}`}
+                      href={`https://basescan.org/tx/${txHash}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-400 text-sm underline"
@@ -621,18 +757,21 @@ export default function SlotMachine() {
         
         {/* Spin button */}
         <button
+          onClick={() => {
+            soundManager.buttonClick();
+            handleSpin();
+          }}
+          disabled={!isConnected || isSpinning || !isRightNetwork || txPending}
           className={`pixel-button w-full py-3 text-lg font-bold ${
             !isConnected || !isRightNetwork || isSpinning || txPending
               ? "opacity-50 cursor-not-allowed"
               : "hover:bg-opacity-90"
           }`}
-          onClick={handleSpin}
-          disabled={!isConnected || !isRightNetwork || isSpinning || txPending}
         >
           {!isConnected ? (
             "Connect Wallet to Play"
           ) : !isRightNetwork ? (
-            "Switch to Base Sepolia"
+            "Switch to Base"
           ) : isSpinning || txPending ? (
             "Please wait..."
           ) : (
@@ -643,7 +782,7 @@ export default function SlotMachine() {
         {/* Network info */}
         {isConnected && !isRightNetwork && (
           <div className="text-yellow-400 text-xs mt-2">
-            Please switch to Base Sepolia testnet to play
+            Please switch to Base mainnet to play
           </div>
         )}
       </div>

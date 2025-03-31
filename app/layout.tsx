@@ -3,6 +3,14 @@ import "@coinbase/onchainkit/styles.css";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
+import { Press_Start_2P } from 'next/font/google';
+
+const pressStart2P = Press_Start_2P({
+  weight: '400',
+  subsets: ['latin'],
+  variable: '--font-press-start-2p',
+  display: 'swap',
+});
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -47,12 +55,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={pressStart2P.variable}>
       <head>
-        <link 
-          href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" 
-          rel="stylesheet"
-        />
         <link 
           href="https://unpkg.com/nes.css@latest/css/nes.min.css" 
           rel="stylesheet" 

@@ -95,8 +95,8 @@ export default function App() {
 
         <main className="px-4">
           <div className="text-center mb-6 casino-border p-4">
-            <h1 className="text-3xl font-bold mb-2 glow-text">MINIBET</h1>
-            <p className="text-yellow-400 text-xs mt-3">TRY YOUR LUCK WITH 0.001 ETH PER SPIN!</p>
+            <h1 className="text-4xl font-bold mb-2 glow-text press-start">MINIBET</h1>
+            <p className="text-yellow-400 text-sm mt-3 press-start">TRY YOUR LUCK WITH 0.001 ETH PER SPIN!</p>
           </div>
           <SlotMachineContainer />
         </main>
