@@ -6,7 +6,7 @@ import { base } from "wagmi/chains";
 import { useAccount, useWalletClient } from "wagmi";
 
 // Deployed contract address
-const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x5dbC37976af0e9A4ded0D2C02e0559Fa96E6B4F0";
+const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x79931DEa9E94F1fe240DCD7Cbf93f853B681bC7C";
 
 // Create a public client using a public RPC endpoint
 const publicClient = createPublicClient({
