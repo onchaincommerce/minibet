@@ -64,7 +64,7 @@ type TransactionReceipt = {
 };
 
 export default function SlotMachine() {
-  const { isConnected, address, chainId } = useAccount();
+  const { isConnected, address } = useAccount();
   const [result, setResult] = useState<number | null>(null);
   const [payout, setPayout] = useState<string>("0");
   const [tier, setTier] = useState<number | null>(null);
@@ -82,9 +82,9 @@ export default function SlotMachine() {
   // Get wallet client to sign transactions
   const { data: walletClient } = useWalletClient();
   
-  // Check if user is on the right network (Base mainnet)
-  const isRightNetwork = chainId === base.id;
-
+  // Check network using RPC call
+  const [isRightNetwork, setIsRightNetwork] = useState(false);
+  
   // Reset state when connecting/disconnecting
   useEffect(() => {
     if (!isConnected) {
@@ -407,6 +407,24 @@ export default function SlotMachine() {
     try {
       console.log("Starting spin transaction");
       
+      // Get the current chain ID from the wallet
+      const currentChainId = await walletClient.getChainId();
+      console.log("Current chain ID:", currentChainId);
+      
+      // If we're not on Base mainnet, we need to switch
+      if (currentChainId !== base.id) {
+        try {
+          // Request chain switch
+          await walletClient.switchChain({ id: base.id });
+          console.log("Successfully switched to Base mainnet");
+        } catch (switchError) {
+          console.error("Error switching chain:", switchError);
+          setError("Please switch to Base mainnet to play");
+          setIsSpinning(false);
+          return;
+        }
+      }
+      
       // Directly use the walletClient to send the transaction
       const hash = await walletClient.writeContract({
         address: contractAddress as `0x${string}`,
@@ -492,6 +510,28 @@ export default function SlotMachine() {
       }, 1200);
     }
   }, [isTxSuccess, tier]);
+
+  // Check network using RPC call
+  useEffect(() => {
+    async function checkNetwork() {
+      if (!isConnected || !walletClient) {
+        setIsRightNetwork(false);
+        return;
+      }
+
+      try {
+        // Try to get the chain ID directly from the RPC
+        const chainId = await backupPublicClient.getChainId();
+        setIsRightNetwork(chainId === base.id);
+      } catch (error) {
+        console.error("Error checking network:", error);
+        // If we can't verify the network, trust smart wallets
+        setIsRightNetwork(walletClient.type === 'smart');
+      }
+    }
+
+    checkNetwork();
+  }, [isConnected, walletClient]);
 
   const getResultText = () => {
     if (!isConnected) return "Connect wallet to play";
@@ -591,6 +631,15 @@ export default function SlotMachine() {
     soundManager.buttonClick();
     const shareUrl = `https://twitter.com/intent/tweet?text=${getShareText()}`;
     window.open(shareUrl, '_blank');
+  };
+
+  // Update the network warning message to be more specific
+  const getNetworkWarning = () => {
+    if (!isConnected) return null;
+    if (!walletClient) return "Connecting to wallet...";
+    if (walletClient.type === 'smart') return null; // No warning for smart wallets
+    if (!isRightNetwork) return "Please switch to Base mainnet to play";
+    return null;
   };
 
   return (
@@ -780,9 +829,9 @@ export default function SlotMachine() {
         </button>
         
         {/* Network info */}
-        {isConnected && !isRightNetwork && (
+        {isConnected && !isRightNetwork && walletClient?.type !== 'smart' && (
           <div className="text-yellow-400 text-xs mt-2">
-            Please switch to Base mainnet to play
+            {getNetworkWarning()}
           </div>
         )}
       </div>

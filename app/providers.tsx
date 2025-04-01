@@ -1,7 +1,7 @@
 "use client";
 
 import { type ReactNode } from "react";
-import { baseSepolia } from "wagmi/chains";
+import { base } from "wagmi/chains";
 import { MiniKitProvider } from "@coinbase/onchainkit/minikit";
 import { WagmiProvider, createConfig, http } from "wagmi";
 import { coinbaseWallet } from "wagmi/connectors";
@@ -12,15 +12,16 @@ const queryClient = new QueryClient();
 
 // Create wagmi config for wallet connection
 const wagmiConfig = createConfig({
-  chains: [baseSepolia],
+  chains: [base],
   connectors: [
     coinbaseWallet({
       appName: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME || "MiniBet",
+      chainId: base.id, // Explicitly set the chain ID for Base mainnet
     }),
   ],
   ssr: true,
   transports: {
-    [baseSepolia.id]: http(),
+    [base.id]: http('https://mainnet.base.org'),
   },
 });
 
@@ -30,7 +31,7 @@ export function Providers(props: { children: ReactNode }) {
       <QueryClientProvider client={queryClient}>
         <MiniKitProvider
           apiKey={process.env.NEXT_PUBLIC_ONCHAINKIT_API_KEY}
-          chain={baseSepolia}
+          chain={base}
           config={{
             appearance: {
               mode: "auto",
