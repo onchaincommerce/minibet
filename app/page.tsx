@@ -56,9 +56,9 @@ export default function App() {
   }, [context, handleAddFrame, frameAdded]);
 
   return (
-    <div className="flex flex-col min-h-screen sm:min-h-[820px] font-['Press_Start_2P'] bg-black text-white items-center relative">
+    <div className="flex flex-col min-h-screen pb-8 font-['Press_Start_2P'] bg-black text-white items-center relative">
       <CasinoBackground />
-      <div className="w-full max-w-[520px] mx-auto z-10">
+      <div className="w-full max-w-[520px] mx-auto z-10 px-4">
         <header className="mt-4 mb-4 flex justify-between items-center px-4">
           <div className="justify-start">
             {address ? (

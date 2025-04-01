@@ -62,7 +62,7 @@ export default function RootLayout({
           rel="stylesheet" 
         />
       </head>
-      <body className="bg-background overflow-hidden">
+      <body className="bg-background">
         <Providers>{children}</Providers>
       </body>
     </html>
