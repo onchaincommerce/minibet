@@ -643,7 +643,7 @@ export default function SlotMachine() {
   };
 
   return (
-    <div className="pixel-card relative overflow-hidden">
+    <div className="pixel-card relative">
       {/* Show jackpot celebration */}
       <JackpotCelebration 
         isVisible={showJackpot} 

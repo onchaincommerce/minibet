@@ -164,8 +164,8 @@ export default function AdminPanel() {
   }
 
   return (
-    <div className="pixel-card w-full max-w-[520px] mx-auto relative press-start">
-      <div className="text-center mb-6">
+    <div className="pixel-card w-full max-w-[520px] mx-auto relative press-start p-4 md:p-6">
+      <div className="text-center mb-4 md:mb-6">
         <h2 className="text-lg font-bold text-green-400">CONTRACT ADMIN</h2>
         <div className="mt-3 bg-slate-900/60 py-2 px-4 rounded-lg inline-block">
           <div className="flex items-center gap-3">

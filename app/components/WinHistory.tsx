@@ -291,7 +291,7 @@ export default function WinHistory() {
             : "No spins found yet. Start playing!"}
         </div>
       ) : (
-        <div className="h-[450px] overflow-y-auto pr-2 scrollbar-slim">
+        <div className="max-h-[60vh] md:max-h-[450px] overflow-y-auto pr-2 scrollbar-slim">
           <div className="space-y-3">
             {filteredHistory.map((record, index) => (
               <div key={index} className="w-full bg-slate-900/70 p-3 rounded-lg border border-blue-700/50">

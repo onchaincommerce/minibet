@@ -86,8 +86,8 @@ export default function JackpotProgress() {
   const progressPercentage = (jackpotStatus.currentSpins / 200) * 100;
 
   return (
-    <div className="pixel-card w-full max-w-[520px] mx-auto p-6">
-      <div className="text-center mb-6">
+    <div className="pixel-card w-full max-w-[520px] mx-auto p-4 md:p-6">
+      <div className="text-center mb-4 md:mb-6">
         <h2 className="text-2xl font-bold text-yellow-400 mb-2">🎰 JACKPOT STATUS</h2>
         <p className="text-sm text-gray-400">
           {jackpotStatus.isUnlocked 
