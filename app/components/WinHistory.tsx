@@ -11,7 +11,7 @@ const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x79931DEa9
 // Create a public client using a public RPC endpoint
 const publicClient = createPublicClient({
   chain: base,
-  transport: http('https://base.blockpi.network/v1/rpc/public')
+  transport: http('https://mainnet.base.org')
 });
 
 // Contract ABI for user stats
@@ -37,6 +37,7 @@ type WinRecord = {
   payout: string;
   tier: number;
   timestamp: string;
+  txHash: string;
 };
 
 type UserStats = {
@@ -94,8 +95,8 @@ export default function WinHistory() {
       
       // Get current block number
       const currentBlock = await publicClient.getBlockNumber();
-      // Start from 1000 blocks ago to limit the search
-      const fromBlock = currentBlock - BigInt(1000);
+      // Start from 10000 blocks ago to get more history
+      const fromBlock = currentBlock - BigInt(10000);
       
       console.log("Fetching logs from block:", fromBlock.toString());
       
@@ -122,16 +123,18 @@ export default function WinHistory() {
       console.log("Found logs:", logs);
       
       // Process logs into history
-      const history = logs.map(log => {
+      const history = await Promise.all(logs.map(async log => {
         const args = log.args as SpinResultArgs;
+        const block = await publicClient.getBlock({ blockHash: log.blockHash });
         return {
           spinId: Number(args.spinId),
           result: Number(args.result),
           payout: formatEther(args.payout),
           tier: args.tier,
-          timestamp: new Date().toISOString()
+          timestamp: new Date(Number(block.timestamp) * 1000).toISOString(),
+          txHash: log.transactionHash
         } as WinRecord;
-      });
+      }));
       
       // Sort by spinId in descending order (newest first)
       history.sort((a, b) => b.spinId - a.spinId);
@@ -317,7 +320,7 @@ export default function WinHistory() {
                 
                 <div className="mt-2 text-xs">
                   <a 
-                    href={`https://basescan.org/tx/${record.spinId}`} 
+                    href={`https://basescan.org/tx/${record.txHash}`} 
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="text-blue-400 hover:text-blue-300 underline text-xs press-start"
