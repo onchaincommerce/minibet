@@ -60,14 +60,6 @@ type UserStats = {
   netProfit: bigint;
 };
 
-type SpinResultArgs = {
-  spinId: bigint;
-  player: string;
-  result: bigint;
-  payout: bigint;
-  tier: number;
-};
-
 type BaseScanEvent = {
   data: string;
   topics: string[];
