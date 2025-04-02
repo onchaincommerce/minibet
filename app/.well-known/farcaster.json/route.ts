@@ -1,22 +1,18 @@
 export async function GET() {
-  const URL = process.env.NEXT_PUBLIC_URL;
-
   return Response.json({
     accountAssociation: {
-      header: process.env.FARCASTER_HEADER,
-      payload: process.env.FARCASTER_PAYLOAD,
-      signature: process.env.FARCASTER_SIGNATURE,
+      header: "eyJmaWQiOjIxNTA1NCwidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweEI0MjcxQTUyNTVhMzYzYTNCY0MyRTQxNGJjN0JkM0VDYTgwRmNGZjgifQ",
+      payload: "eyJkb21haW4iOiJtaW5pYmV0LnZlcmNlbC5hcHAvIn0",
+      signature: "MHgyMTQzOTdlZmFhMjQ3OGJmNTQzNTJkZjFmMDQwY2ViMzFiYjVkZjRkMGQxYmNlMjM5Y2FkMTY1YWVhMjc3ODAyNzcyYjkwNDRjODczM2UzMzA3ZjcwOTE5MGMyNjI0OTI0N2VjMTI5ZmZlOTJhZGZlZjczMDU1ZDBlNjY3NjY4NzFi"
     },
     frame: {
-      version: process.env.NEXT_PUBLIC_VERSION,
-      name: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME,
-      homeUrl: URL,
-      iconUrl: process.env.NEXT_PUBLIC_ICON_URL,
-      imageUrl: process.env.NEXT_PUBLIC_IMAGE_URL,
-      buttonTitle: `Launch ${process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME}`,
-      splashImageUrl: process.env.NEXT_PUBLIC_SPLASH_IMAGE_URL,
-      splashBackgroundColor: `#${process.env.NEXT_PUBLIC_SPLASH_BACKGROUND_COLOR}`,
-      webhookUrl: `${URL}/api/webhook`,
-    },
+      name: "minibet",
+      homeUrl: "https://minibet.vercel.app/",
+      buttonTitle: "Launch minibet",
+      splashBackgroundColor: "#0052FF",
+      webhookUrl: "https://minibet.vercel.app//api/webhook",
+      version: "1",
+      iconUrl: "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/eLn2sv3JTDfs/minibet_voxel-OEtFw9lLeKis4YLQwHMidCdsG0Jdd4.png?iUKu"
+    }
   });
 }
