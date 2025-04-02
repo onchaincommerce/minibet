@@ -2,8 +2,8 @@ export async function GET() {
   return Response.json({
     accountAssociation: {
       header: "eyJmaWQiOjIxNTA1NCwidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweEI0MjcxQTUyNTVhMzYzYTNCY0MyRTQxNGJjN0JkM0VDYTgwRmNGZjgifQ",
-      payload: "eyJkb21haW4iOiJtaW5pYmV0LnZlcmNlbC5hcHAvIn0",
-      signature: "MHgyMTQzOTdlZmFhMjQ3OGJmNTQzNTJkZjFmMDQwY2ViMzFiYjVkZjRkMGQxYmNlMjM5Y2FkMTY1YWVhMjc3ODAyNzcyYjkwNDRjODczM2UzMzA3ZjcwOTE5MGMyNjI0OTI0N2VjMTI5ZmZlOTJhZGZlZjczMDU1ZDBlNjY3NjY4NzFi"
+      payload: "eyJkb21haW4iOiJtaW5pYmV0LnZlcmNlbC5hcHAifQ",
+      signature: "MHgzNDY5Y2MwMTIxNmMzMTk4YTc1MTM4YmI0ZjVlNmNmMmY4Y2U3OWMwYzViZjBlMDFmNWY2ZDc5YWYxNDAyMmExMzRlNGVhYTYxMWJiZjIxYzU2Y2ZmZjRiYmZmM2Y5NGRjMmI4MmE2Y2U0MDY4MjIyMmM4NzkwOGNjNmQyNDQwYzFi"
     },
     frame: {
       name: "minibet",
