@@ -32,14 +32,18 @@ export async function generateMetadata(): Promise<Metadata> {
     other: {
       "fc:frame": JSON.stringify({
         button: {
-          title: "Launch minibet",
+          title: "SPIN",
           action: {
             type: "launch_frame",
             name: "minibet",
             url: "https://minibet.vercel.app/",
-            splashBackgroundColor: "#0052FF"
+            splashBackgroundColor: "#0052FF",
+            splashImageUrl: "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/eLn2sv3JTDfs/minibet_voxel-OEtFw9lLeKis4YLQwHMidCdsG0Jdd4.png?iUKu"
           }
-        }
+        },
+        aspectRatio: "3:2",
+        version: "next",
+        imageUrl: "https://lqy3lriiybxcejon.public.blob.vercel-storage.com/eLn2sv3JTDfs/Screenshot%202025-04-02%20at%206.44.34%E2%80%AFAM-QtypQRrxzAt4AGe57OwGSjHB1FBVdQ.png?1VyW"
       }),
     },
   };
