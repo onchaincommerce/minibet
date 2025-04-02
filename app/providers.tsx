@@ -6,17 +6,29 @@ import { MiniKitProvider } from "@coinbase/onchainkit/minikit";
 import { WagmiProvider, createConfig, http } from "wagmi";
 import { coinbaseWallet } from "wagmi/connectors";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { farcasterFrame as miniAppConnector } from '@farcaster/frame-wagmi-connector';
 
 // Create a QueryClient for data fetching
 const queryClient = new QueryClient();
+
+// Function to check if we're in a Farcaster client
+const isInFarcasterClient = () => {
+  if (typeof window === 'undefined') return false;
+  return window.location.href.includes('warpcast.com') || 
+         window.location.href.includes('farcaster.xyz') ||
+         window.location.href.includes('farcaster.com');
+};
 
 // Create wagmi config for wallet connection
 const wagmiConfig = createConfig({
   chains: [base],
   connectors: [
+    // Use Farcaster Frame connector if in a Farcaster client
+    ...(isInFarcasterClient() ? [miniAppConnector()] : []),
+    // Always include Coinbase Wallet for non-Farcaster contexts
     coinbaseWallet({
       appName: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME || "MiniBet",
-      chainId: base.id, // Explicitly set the chain ID for Base mainnet
+      chainId: base.id,
     }),
   ],
   ssr: true,
