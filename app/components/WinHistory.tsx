@@ -11,8 +11,21 @@ const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x79931DEa9
 // Create a public client using a public RPC endpoint
 const publicClient = createPublicClient({
   chain: base,
-  transport: http('https://mainnet.base.org')
+  transport: http('https://api.developer.coinbase.com/rpc/v1/base/h4AxrANvkjw0WX4vP3eYuBR1AvrVawAj')
 });
+
+// BaseScan API configuration
+const BASESCAN_API_KEY = 'VKV5XTXM4F672R217V452JRJCKUYT6J3QW';
+const BASESCAN_API_URL = 'https://api.basescan.org/api';
+const BASESCAN_TX_URL = 'https://basescan.org/tx';
+
+// Event signature for SpinResult (from actual contract events)
+const SPIN_RESULT_SIGNATURE = '0x8b2f242d32371a41f80f3dcf16124d8271bbedc9ded98b620290046aac8a1d8c';
+
+// Function to pad address to 32 bytes
+const padAddress = (address: string) => {
+  return '0x' + '0'.repeat(24) + address.slice(2).toLowerCase();
+};
 
 // Contract ABI for user stats
 const userStatsAbi = [
@@ -55,6 +68,14 @@ type SpinResultArgs = {
   tier: number;
 };
 
+type BaseScanEvent = {
+  data: string;
+  topics: string[];
+  timeStamp: string;
+  hash: string;
+  transactionHash: string;
+};
+
 export default function WinHistory() {
   const { address, isConnected } = useAccount();
   const [winHistory, setWinHistory] = useState<WinRecord[]>([]);
@@ -62,6 +83,8 @@ export default function WinHistory() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'wins' | 'all'>('wins');
+  const [page, setPage] = useState(1);
+  const [hasMoreHistory, setHasMoreHistory] = useState(true);
 
   // Function to fetch user stats
   const fetchUserStats = useCallback(async () => {
@@ -87,71 +110,106 @@ export default function WinHistory() {
   }, [address, isConnected]);
 
   // Function to fetch win history, wrapped in useCallback
-  const fetchWinHistory = useCallback(async () => {
+  const fetchWinHistory = useCallback(async (pageNum: number = 1) => {
     if (!address) return;
     
     try {
+      setIsLoading(true);
       console.log("Fetching win history for address:", address);
       
-      // Get current block number
-      const currentBlock = await publicClient.getBlockNumber();
-      // Start from 10000 blocks ago to get more history
-      const fromBlock = currentBlock - BigInt(10000);
+      // Use BaseScan API to get contract events
+      const apiUrl = `${BASESCAN_API_URL}?module=logs&action=getLogs&address=${contractAddress}&fromBlock=0&topic0=${SPIN_RESULT_SIGNATURE}&topic2=${padAddress(address)}&page=${pageNum}&offset=1000&sort=desc&apikey=${BASESCAN_API_KEY}`;
       
-      console.log("Fetching logs from block:", fromBlock.toString());
+      console.log("Fetching from URL:", apiUrl);
       
-      const logs = await publicClient.getLogs({
-        address: contractAddress as `0x${string}`,
-        event: {
-          inputs: [
-            { indexed: true, name: 'spinId', type: 'uint256' },
-            { indexed: true, name: 'player', type: 'address' },
-            { indexed: false, name: 'result', type: 'uint256' },
-            { indexed: false, name: 'payout', type: 'uint256' },
-            { indexed: false, name: 'tier', type: 'uint8' }
-          ],
-          name: 'SpinResult',
-          type: 'event'
-        },
-        args: {
-          player: address
-        },
-        fromBlock,
-        toBlock: 'latest'
-      });
+      const response = await fetch(apiUrl);
+      const data = await response.json();
       
-      console.log("Found logs:", logs);
+      console.log("API Response:", data);
       
-      // Process logs into history
-      const history = await Promise.all(logs.map(async log => {
-        const args = log.args as SpinResultArgs;
-        const block = await publicClient.getBlock({ blockHash: log.blockHash });
-        return {
-          spinId: Number(args.spinId),
-          result: Number(args.result),
-          payout: formatEther(args.payout),
-          tier: args.tier,
-          timestamp: new Date(Number(block.timestamp) * 1000).toISOString(),
-          txHash: log.transactionHash
-        } as WinRecord;
-      }));
+      if (data.status === '0' && data.message === 'No records found') {
+        // No records is a valid state, not an error
+        console.log("No records found from API");
+        setWinHistory([]);
+        setHasMoreHistory(false);
+        setIsLoading(false);
+        return;
+      }
+      
+      if (data.status !== '1') {
+        throw new Error(data.message || 'Failed to fetch history');
+      }
+
+      const events = Array.isArray(data.result) ? data.result : [];
+      console.log("Found events:", events);
+      
+      // Process events into history
+      const history = events.map((event: BaseScanEvent) => {
+        try {
+          // Get spinId from topic1 (second topic)
+          const spinId = parseInt(event.topics[1], 16);
+          
+          // Decode the data field (contains result, payout, and tier)
+          const dataHex = event.data.slice(2); // Remove '0x' prefix
+          const result = parseInt(dataHex.slice(0, 64), 16);
+          const payout = BigInt('0x' + dataHex.slice(64, 128));
+          const tier = parseInt(dataHex.slice(128), 16);
+          
+          console.log("Processed event:", {
+            spinId,
+            result,
+            payout: formatEther(payout),
+            tier,
+            timestamp: event.timeStamp,
+            hash: event.transactionHash
+          });
+          
+          return {
+            spinId,
+            result,
+            payout: formatEther(payout),
+            tier,
+            timestamp: new Date(Number(event.timeStamp) * 1000).toISOString(),
+            txHash: event.transactionHash
+          } as WinRecord;
+        } catch (err) {
+          console.error("Error processing event:", err, event);
+          return null;
+        }
+      }).filter((record: WinRecord | null): record is WinRecord => record !== null);
       
       // Sort by spinId in descending order (newest first)
-      history.sort((a, b) => b.spinId - a.spinId);
+      history.sort((a: WinRecord, b: WinRecord) => b.spinId - a.spinId);
       
-      setWinHistory(history);
-      setIsLoading(false);
+      console.log("Processed history:", history);
+      
+      // Update pagination state
+      setPage(pageNum + 1);
+      setHasMoreHistory(events.length === 1000); // If we got 1000 events, there might be more
+      
+      // If this is the first load, replace the history
+      // If this is loading more, append to existing history
+      setWinHistory(prev => pageNum === 1 ? history : [...prev, ...history]);
+      
     } catch (error) {
       console.error("Error fetching history:", error);
       setError("Failed to load history. Please try again later.");
+    } finally {
       setIsLoading(false);
     }
   }, [address]);
 
+  // Load more history
+  const loadMoreHistory = () => {
+    if (hasMoreHistory) {
+      fetchWinHistory(page);
+    }
+  };
+
   // Fetch data when address changes
   useEffect(() => {
     fetchUserStats();
-    fetchWinHistory();
+    fetchWinHistory(1);
   }, [fetchUserStats, fetchWinHistory]);
 
   if (!isConnected) {
@@ -208,6 +266,28 @@ export default function WinHistory() {
         </div>
       )}
       
+      {/* Rewards Info Section */}
+      <div className="mb-6 p-4 bg-slate-900/70 rounded-lg border border-yellow-700/50">
+        <h3 className="text-lg font-bold text-yellow-400 mb-4">Rewards</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-slate-800/50 p-3 rounded-lg border border-yellow-600/30">
+            <div className="text-yellow-300 text-sm mb-1">🎉 JACKPOT</div>
+            <div className="text-lg font-bold text-green-400">0.1 ETH</div>
+            <div className="text-xs text-gray-400 mt-1">0.1% Chance</div>
+          </div>
+          <div className="bg-slate-800/50 p-3 rounded-lg border border-yellow-600/30">
+            <div className="text-yellow-300 text-sm mb-1">🎊 Big Win</div>
+            <div className="text-lg font-bold text-green-400">0.01 ETH</div>
+            <div className="text-xs text-gray-400 mt-1">2% Chance</div>
+          </div>
+          <div className="bg-slate-800/50 p-3 rounded-lg border border-yellow-600/30">
+            <div className="text-yellow-300 text-sm mb-1">👍 Small Win</div>
+            <div className="text-lg font-bold text-green-400">0.002 ETH</div>
+            <div className="text-xs text-gray-400 mt-1">10% Chance</div>
+          </div>
+        </div>
+      </div>
+      
       {/* Stats Section */}
       {userStats && (
         <div className="mb-6 p-4 bg-slate-900/70 rounded-lg border border-blue-700/50">
@@ -263,25 +343,6 @@ export default function WinHistory() {
             </button>
           </div>
         </div>
-        <button
-          onClick={() => {
-            fetchUserStats();
-            fetchWinHistory();
-          }}
-          disabled={isLoading}
-          className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed px-2 py-1 border border-blue-700/30 rounded-md press-start"
-        >
-          {isLoading ? (
-            <span className="animate-pulse">Refreshing...</span>
-          ) : (
-            <>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Refresh
-            </>
-          )}
-        </button>
       </div>
 
       {filteredHistory.length === 0 ? (
@@ -320,7 +381,7 @@ export default function WinHistory() {
                 
                 <div className="mt-2 text-xs">
                   <a 
-                    href={`https://basescan.org/tx/${record.txHash}`} 
+                    href={`${BASESCAN_TX_URL}/${record.txHash}`} 
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="text-blue-400 hover:text-blue-300 underline text-xs press-start"
@@ -331,6 +392,28 @@ export default function WinHistory() {
               </div>
             ))}
           </div>
+          
+          {/* Load More Button */}
+          {hasMoreHistory && (
+            <div className="mt-4 text-center">
+              <button
+                onClick={loadMoreHistory}
+                disabled={isLoading}
+                className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 mx-auto disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5 border border-blue-700/30 rounded-md press-start"
+              >
+                {isLoading ? (
+                  <span className="animate-pulse">Loading...</span>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                    Load More History
+                  </>
+                )}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

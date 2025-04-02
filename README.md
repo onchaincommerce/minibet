@@ -1,10 +1,10 @@
 # Minibet
 
-A lightweight onchain slot machine dApp built on the Base network using MiniKit.
+A lightweight onchain slot machine Mini App built with MiniKit from OnchainKit, deployed on Base mainnet and available on Warpcast.
 
 ## Overview
 
-Minibet is a simple slot machine game where users can spin for 0.001 ETH and win prizes based on randomized outcomes, all fully onchain.
+Minibet is a simple slot machine game where users can spin for 0.001 ETH and win prizes based on randomized outcomes, all fully onchain. The app is built as a Mini App using MiniKit from OnchainKit, making it seamlessly integrated with Warpcast.
 
 ### Payout Tiers
 
@@ -17,23 +17,34 @@ Minibet is a simple slot machine game where users can spin for 0.001 ETH and win
 
 ## Live Demo
 
-The application is deployed on Base Sepolia testnet. You can interact with the verified contract directly on BaseScan:
+The application is deployed on Base mainnet and available as a Mini App on Warpcast. You can interact with the verified contract directly on BaseScan:
 
-[0x3C4883E9eE3FAa7A014e6c656138e7dDc049E754](https://sepolia.basescan.org/address/0x3C4883E9eE3FAa7A014e6c656138e7dDc049E754)
+[0x79931DEa9E94F1fe240DCD7Cbf93f853B681bC7C](https://basescan.org/address/0x79931DEa9E94F1fe240DCD7Cbf93f853B681bC7C)
 
 ## Tech Stack
 
-- **Smart Contract**: Solidity with Hardhat, deployed on Base Sepolia (testnet)
+- **Smart Contract**: Solidity with Hardhat, deployed on Base mainnet
 - **Frontend**: Next.js with MiniKit, OnchainKit, Wagmi, and Viem
+- **Mini App**: Built with MiniKit from OnchainKit
 - **Wallet Connection**: OnchainKit Wallet components
 - **Randomness**: Pseudo-random using block data (block.timestamp, block.prevrandao, etc.)
+
+## Features
+
+- 🎰 Simple and intuitive slot machine interface
+- 💰 Multiple win tiers with different payouts
+- 🎮 Sound effects and animations for enhanced gameplay
+- 📱 Mobile-friendly design
+- 🔄 Real-time win history tracking
+- 📊 User statistics and performance metrics
+- 🔗 Seamless integration with Warpcast as a Mini App
 
 ## Getting Started
 
 ### Prerequisites
 
 - Node.js and npm
-- Base Sepolia testnet ETH (for testing)
+- Base mainnet ETH (for playing)
 
 ### Installation
 
@@ -53,7 +64,7 @@ npm install
 3. Create a `.env.local` file with the following variables:
 
 ```
-NEXT_PUBLIC_CONTRACT_ADDRESS="0x3C4883E9eE3FAa7A014e6c656138e7dDc049E754"
+NEXT_PUBLIC_CONTRACT_ADDRESS="0x79931DEa9E94F1fe240DCD7Cbf93f853B681bC7C"
 NEXT_PUBLIC_ONCHAINKIT_API_KEY="your_onchainkit_api_key"
 NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME="Minibet"
 NEXT_PUBLIC_ICON_URL="/icon.png"
@@ -72,9 +83,9 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 ## Smart Contract Deployment
 
-### Deploying to Base Sepolia (testnet)
+### Deploying to Base mainnet
 
-1. Make sure you have Base Sepolia ETH in your wallet
+1. Make sure you have Base mainnet ETH in your wallet
 2. Add your private key to the `.env` file:
 
 ```
@@ -84,7 +95,7 @@ PRIVATE_KEY="your_wallet_private_key"
 3. Deploy the contract:
 
 ```bash
-npx hardhat run scripts/deploy.js --network baseSepolia
+npx hardhat run scripts/deploy.js --network base
 ```
 
 4. Update the `NEXT_PUBLIC_CONTRACT_ADDRESS` in your `.env.local` file with the deployed contract address
@@ -100,15 +111,15 @@ module.exports = {
   etherscan: {
     apiKey: {
       // Use your BaseScan API key
-      baseSepolia: "YOUR_BASESCAN_API_KEY"
+      base: "YOUR_BASESCAN_API_KEY"
     },
     customChains: [
       {
-        network: "baseSepolia",
-        chainId: 84532,
+        network: "base",
+        chainId: 8453,
         urls: {
-          apiURL: "https://api-sepolia.basescan.org/api",
-          browserURL: "https://sepolia.basescan.org"
+          apiURL: "https://api.basescan.org/api",
+          browserURL: "https://basescan.org"
         }
       }
     ]
@@ -119,7 +130,7 @@ module.exports = {
 Then run the verification command:
 
 ```bash
-npx hardhat verify --network baseSepolia YOUR_CONTRACT_ADDRESS
+npx hardhat verify --network base YOUR_CONTRACT_ADDRESS
 ```
 
 ## Troubleshooting
@@ -128,7 +139,7 @@ npx hardhat verify --network baseSepolia YOUR_CONTRACT_ADDRESS
 
 If you encounter issues with transactions not updating the UI:
 1. Check the transaction on BaseScan to confirm it was successful
-2. Make sure your wallet is connected to the Base Sepolia network
+2. Make sure your wallet is connected to the Base mainnet network
 3. The contract emits a `SpinResult` event which the frontend listens for
 
 ### Testing the Contract
@@ -136,7 +147,7 @@ If you encounter issues with transactions not updating the UI:
 You can test the slot machine contract using the provided script:
 
 ```bash
-npx hardhat run scripts/test-spin.js --network baseSepolia
+npx hardhat run scripts/test-spin.js --network base
 ```
 
 ## Learn More
